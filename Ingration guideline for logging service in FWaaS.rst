@@ -10,11 +10,12 @@ Environment
 
 * Ubuntu 16.04
 * Dependencies
+  
+  Install the required dependencies for python-libnetfilter on Ubuntu 
 
   .. code-block:: console
 
-    sudo apt-get install libnetfilter-conntrack3 libnetfilter-log1 libnetfilter-queue1
-    sudo apt-get install python-zmq
+    sudo apt-get install libnetfilter-log1
 	
 * Devstack local.conf:  http://paste.openstack.org/show/725188/
   
@@ -51,13 +52,15 @@ In **/opt/stack/neutron-fwaas**:
   # [log] Logging driver based iptables for FWaaS
   git review -x 553738
 
+  sudo python setup.py install
+
 In **python-neutron client**:
 
 .. code-block:: console
 
   git clone https://github.com/openstack/python-neutronclient.git && cd python-neutronclient
   git review -d 579466
-  python setup install
+  python setup.py install
 
 Devstack configuration
 ======================
@@ -66,7 +69,7 @@ To enable the service, follow the steps below.
 
 * On Neutron side:
 
-  - Ensure that log already added into **/etc/neutron/neutron.conf** as service plugin. For example:
+  - Ensure that **log** already added into **/etc/neutron/neutron.conf** as service plugin. For example:
   
   .. code-block:: block
 
@@ -135,7 +138,7 @@ Workflow testing scenario
   
 * Check nflog rule creation in **accepted** and **dropped** chain from both **iptables** and **ip6tables**
 
-  .. code-block:: console
+  .. code-block:: bash
 
 	router_id=$(openstack router list | grep router0 | awk '{print$2}')
 	router_ns='qrouter-'$router_id
@@ -147,3 +150,5 @@ Workflow testing scenario
 	printf "\niptables v6\n"
 	sudo ip netns exec $router_ns ip6tables -L neutron-l3-agent-accepted
 	sudo ip netns exec $router_ns ip6tables -L neutron-l3-agent-dropped
+
+* Log information is written to the destination if configured in system journal like **/var/log/syslog**
