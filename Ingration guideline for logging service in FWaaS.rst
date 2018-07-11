@@ -32,6 +32,8 @@ In **/opt/stack/neutron**:
   git review -d 534227
   # Generic validate_request method for logging
   git review -x 529814
+  # Adding resources callback handler
+  git review -x 580575
 
 * **Note:** 534227 patch will conflict with 529814 patch in neutron/services/logapi/drivers/openvswitch/driver.py
 
@@ -49,6 +51,10 @@ In **/opt/stack/neutron-fwaas**:
   git review -x 576338
   # [log]: Add rpc stuff for logging
   git review -x 530715
+  # Add notification callback events
+  git review -x 578718
+  # Adding resources callback handler for logging service in FWaaS
+  git review -x 580976
   # [log] Logging driver based iptables for FWaaS
   git review -x 553738
 
@@ -60,7 +66,7 @@ In **python-neutron client**:
 
   git clone https://github.com/openstack/python-neutronclient.git && cd python-neutronclient
   git review -d 579466
-  python setup.py install
+  sudo python setup.py install
 
 Devstack configuration
 ======================
@@ -101,10 +107,15 @@ Network Configuration
 	# Create net0 with subnet subnet0
 	openstack network create --share net0
 	openstack subnet create subnet0 --ip-version 4 --gateway 10.10.0.1 --network net0 --subnet-range 10.10.0.0/24
+
+	# Create net1 with subnet subnet1
+	openstack network create --share net1
+	openstack subnet create subnet1 --ip-version 4 --gateway 10.10.1.1 --network net1 --subnet-range 10.10.1.0/24
 	
-	# Create router router0 and attach subnet0 to router0
+	# Create router router0 and attach subnet0, subnet1 to router0
 	openstack router create router0
 	openstack router add subnet router0 subnet0
+	openstack router add subnet router0 subnet1
 
 	# Create fwg1 with default ingress, egress firewall group policy from admin project
 	project_id=$(openstack project show admin | grep ' id' | awk '{print$4}')
@@ -144,11 +155,48 @@ Workflow testing scenario
 	router_ns='qrouter-'$router_id
 
 	printf "\niptables v4\n"
-	sudo ip netns exec $router_ns iptables -L neutron-l3-agent-accepted
-	sudo ip netns exec $router_ns iptables -L neutron-l3-agent-dropped
+	sudo ip netns exec $router_ns iptables -nvL neutron-l3-agent-accepted
+	sudo ip netns exec $router_ns iptables -nvL neutron-l3-agent-dropped
 	
 	printf "\niptables v6\n"
-	sudo ip netns exec $router_ns ip6tables -L neutron-l3-agent-accepted
-	sudo ip netns exec $router_ns ip6tables -L neutron-l3-agent-dropped
+	sudo ip netns exec $router_ns ip6tables -nvL neutron-l3-agent-accepted
+	sudo ip netns exec $router_ns ip6tables -nvL neutron-l3-agent-dropped
 
+* The iptables configuration results when logging is enabled would look like::
+
+	===========
+	iptables v4
+	===========
+	Chain neutron-l3-agent-accepted (4 references)
+	 pkts bytes target     prot opt in     out     source               destination
+		0     0 NFLOG      all  --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-out qr-3ca70579-14 --physdev-is-bridged state NEW limit: avg 100/sec burst 25 nflog-prefix  12055195249601041766 nflog-group 2
+		0     0 NFLOG      all  --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-in qr-3ca70579-14 --physdev-is-bridged state NEW limit: avg 100/sec burst 25 nflog-prefix  12055195249601041766 nflog-group 2
+		0     0 NFLOG      all  --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-out qr-ffca1c2c-cd --physdev-is-bridged state NEW limit: avg 100/sec burst 25 nflog-prefix  12043269641118917777 nflog-group 2
+		0     0 NFLOG      all  --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-in qr-ffca1c2c-cd --physdev-is-bridged state NEW limit: avg 100/sec burst 25 nflog-prefix  12043269641118917777 nflog-group 2
+		0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0
+	Chain neutron-l3-agent-dropped (3 references)
+	 pkts bytes target     prot opt in     out     source               destination
+		0     0 NFLOG      all  --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-out qr-3ca70579-14 --physdev-is-bridged limit: avg 100/sec burst 25 nflog-prefix  12055195249601041766 nflog-group 2
+		0     0 NFLOG      all  --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-in qr-3ca70579-14 --physdev-is-bridged limit: avg 100/sec burst 25 nflog-prefix  12055195249601041766 nflog-group 2
+		0     0 NFLOG      all  --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-out qr-ffca1c2c-cd --physdev-is-bridged limit: avg 100/sec burst 25 nflog-prefix  12043269641118917777 nflog-group 2
+		0     0 NFLOG      all  --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-in qr-ffca1c2c-cd --physdev-is-bridged limit: avg 100/sec burst 25 nflog-prefix  12043269641118917777 nflog-group 2
+		0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0
+	===========
+	iptables v6
+	===========
+	Chain neutron-l3-agent-accepted (4 references)
+	 pkts bytes target     prot opt in     out     source               destination
+		0     0 NFLOG      all      *      *       ::/0                 ::/0                 PHYSDEV match --physdev-out qr-3ca70579-14 --physdev-is-bridged state NEW limit: avg 100/sec burst 25 nflog-prefix  12055195249601041766 nflog-group 2
+		0     0 NFLOG      all      *      *       ::/0                 ::/0                 PHYSDEV match --physdev-in qr-3ca70579-14 --physdev-is-bridged state NEW limit: avg 100/sec burst 25 nflog-prefix  12055195249601041766 nflog-group 2
+		0     0 NFLOG      all      *      *       ::/0                 ::/0                 PHYSDEV match --physdev-out qr-ffca1c2c-cd --physdev-is-bridged state NEW limit: avg 100/sec burst 25 nflog-prefix  12043269641118917777 nflog-group 2
+		0     0 NFLOG      all      *      *       ::/0                 ::/0                 PHYSDEV match --physdev-in qr-ffca1c2c-cd --physdev-is-bridged state NEW limit: avg 100/sec burst 25 nflog-prefix  12043269641118917777 nflog-group 2
+		0     0 ACCEPT     all      *      *       ::/0                 ::/0
+	Chain neutron-l3-agent-dropped (3 references)
+	 pkts bytes target     prot opt in     out     source               destination
+		0     0 NFLOG      all      *      *       ::/0                 ::/0                 PHYSDEV match --physdev-out qr-3ca70579-14 --physdev-is-bridged limit: avg 100/sec burst 25 nflog-prefix  12055195249601041766 nflog-group 2
+		0     0 NFLOG      all      *      *       ::/0                 ::/0                 PHYSDEV match --physdev-in qr-3ca70579-14 --physdev-is-bridged limit: avg 100/sec burst 25 nflog-prefix  12055195249601041766 nflog-group 2
+		0     0 NFLOG      all      *      *       ::/0                 ::/0                 PHYSDEV match --physdev-out qr-ffca1c2c-cd --physdev-is-bridged limit: avg 100/sec burst 25 nflog-prefix  12043269641118917777 nflog-group 2
+		0     0 NFLOG      all      *      *       ::/0                 ::/0                 PHYSDEV match --physdev-in qr-ffca1c2c-cd --physdev-is-bridged limit: avg 100/sec burst 25 nflog-prefix  12043269641118917777 nflog-group 2
+		0     0 DROP       all      *      *       ::/0                 ::/0
+	
 * Log information is written to the destination if configured in system journal like **/var/log/syslog**
