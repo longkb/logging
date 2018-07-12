@@ -1,99 +1,103 @@
 .. _config-logging:
 
-===========================
-Logging for security groups
-===========================
+================================
+Neutron Packet Logging Framework
+================================
 
-Logging is designed as a service plug-in that captures events for
-relevant resources (for example, security groups or firewalls) when they occur.
+Packet logging service is designed as a Neutron plug-in that captures network 
+packets for relevant resources (e.g. security groups or firewall groups) when 
+the logged events occur.
 
+.. image:: figures/logging-framework.png
+   :alt: Packet Logging Framework
 
 Supported logging resource types
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-As of the Queens release, the ``security_group`` resource type is supported.
+As of the Rocky release, the ``security_group`` and ``firewall_group`` are 
+supported as loggable resource type in packet logging framework.
 
 
-Configuration
-~~~~~~~~~~~~~
+Service Configuration
+~~~~~~~~~~~~~~~~~~~~~
 
-To enable the service, follow the steps below.
+To enable the logging service, follow the steps below.
 
-#. On Neutron server node:
+#. On Neutron controller node, add ``log`` as a service to ``service_plugins``
+   setting in ``/etc/neutron/neutron.conf`` file. For example:
 
-   #. Add the Logging service to the ``service_plugins`` setting in
-      ``/etc/neutron/neutron.conf``. For example:
+   .. code-block:: none
 
-      .. code-block:: none
+     service_plugins = router,metering,log
 
-         service_plugins = router,metering,log
+#. To enable logging service for ``security_group`` in VM ports, add ``log`` to 
+   ``[agent] extensions`` in ``/etc/neutron/plugins/ml2/ml2_conf.ini`` for 
+   controller node and in ``/etc/neutron/plugins/ml2/openvswitch_agent.ini``
+   for compute/network nodes. For example:
 
-   #. Add the Logging extension to the ``extensions`` setting in
-      ``/etc/neutron/plugins/ml2/ml2_conf.ini``. For example:
+   .. code-block:: ini
 
-      .. code-block:: ini
+     [agent]
+     extensions = log
 
-         [agent]
-         extensions = log
+#. To enable logging service for ``firewall_group`` in internal router ports,
+   add  ``fwaas_v2_log`` to the ``[AGENT] extensions`` setting in 
+   ``/etc/neutron/l3_agent.ini`` for both controller node and network nodes. 
+   For example:
 
-#.  On compute/network nodes:
+   .. code-block:: ini
 
-    #. In ``/etc/neutron/plugins/ml2/openvswitch_agent.ini``, add ``log``
-       to the ``extensions`` setting in the ``[agent]`` section. For example:
+     [AGENT]
+     extensions = fwaas_v2,fwaas_v2_log
 
-       .. code-block:: ini
+#. On compute/network nodes, add configurations for logging feature to
+   ``[network_log]`` in ``/etc/neutron/plugins/ml2/openvswitch_agent.ini`` as
+   shown bellow:
 
-          [agent]
-          extensions = log
+    .. code-block:: ini
 
-    #. In ``/etc/neutron/plugins/ml2/openvswitch_agent.ini``, add configuration
-       options for logging feature in the ``[network_log]`` section. For example:
+      [network_log]
+      rate_limit = 100
+      burst_limit = 25
+      #local_output_log_base = <None>
 
-       .. code-block:: ini
+    In which, ``rate_limit`` is used to configure the maximum number of packets
+    to be logged per second (packets per second). When a high rate triggers
+    ``rate_limit``, logging queues packets to be logged. ``burst_limit`` is
+    used to configure the maximum of queued packets. And logged packets can be
+    stored anywhere by using ``local_output_log_base``.
 
-         [network_log]
-         rate_limit = 100
-         burst_limit = 25
-         #local_output_log_base = <None>
+    .. note::
 
-       In which, ``rate_limit`` is used to configure the maximum number of packets
-       to be logged per second (packets per second). When a high rate triggers
-       ``rate_limit``, logging queues packets to be logged. ``burst_limit`` is used
-       to configure the maximum of queued packets. And logged data can be stored
-       anywhere by using ``local_output_log_base``.
+       - It requires at least ``100`` for ``rate_limit`` and at least ``25``
+         for ``burst_limit``.
+       - If ``rate_limit`` is unset, logging will log unlimited.
+       - If we don't specify ``local_output_log_base``, logged packets will be
+         stored in system journal like ``/var/log/syslog`` by default.
 
-.. note::
+#. Trusted projects ``policy.json`` configuration
 
-   - Logging currently works with ``openvswitch`` firewall driver only.
-   - It requires at least 100 for ``rate_limit`` and at least 25 for ``burst_limit``.
-   - If ``rate_limit`` is unset, logging will log unlimited.
-   - If we don't specify ``local_output_log_base``, logged data will be stored
-     in system journal like ``/var/log/syslog``.
+   With the default ``/etc/neutron/policy.json``, administrators must set up
+   resource logging on behalf of the cloud projects.
 
-Trusted projects policy.json configuration
-------------------------------------------
+   If projects are trusted to administer their own loggable resources  in their
+   cloud, neutron's policy file ``policy.json`` can be modified to allow this.
 
-With the default ``/etc/neutron/policy.json``, administrators must
-set up resource logging on behalf of the cloud projects.
+   Modify ``/etc/neutron/policy.json`` entries as follows:
 
-If projects are trusted to administer their own resource logging in your cloud,
-neutron's file ``policy.json`` can be modified to allow this.
+   .. code-block:: none
 
-Modify ``/etc/neutron/policy.json`` policy entries as follows:
+      "get_loggable_resources": "rule:regular_user",
+      "create_log": "rule:regular_user",
+      "get_log": "rule:regular_user",
+      "get_logs": "rule:regular_user",
+      "update_log": "rule:regular_user",
+      "delete_log": "rule:regular_user",
 
-.. code-block:: none
+Service workflow for Operator 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   "get_loggable_resources": "rule:regular_user",
-   "create_log": "rule:regular_user",
-   "update_log": "rule:regular_user",
-   "delete_log": "rule:regular_user",
-   "get_logs": "rule:regular_user",
-   "get_log": "rule:regular_user",
-
-Operator workflow
-~~~~~~~~~~~~~~~~~
-
-#. Confirm logging resources are supported:
+#. To check the loggable resources that are supported by framework:
 
    .. code-block:: console
 
@@ -102,19 +106,26 @@ Operator workflow
       | Supported types |
       +-----------------+
       | security_group  |
+      | firewall_group  |
       +-----------------+
+
+   .. note::
+
+      - In VM ports, logging for ``security_group`` in currently works with
+        ``openvswitch`` firewall driver only.
+      - Logging for ``firewall_group`` works on internal router ports only
 
 #. Create a logging resource with an appropriate resource type:
 
    .. code-block:: console
 
       $ openstack network log create --resource-type security_group \
-        --description "Collecting all security events in project demo" \
-        --enable --event ALL Log_Created
+        --description "Collecting all security events" \
+        --event ALL Log_Created
       +-----------------+------------------------------------------------+
       | Field           | Value                                          |
       +-----------------+------------------------------------------------+
-      | Description     | Collecting all security events in project demo |
+      | Description     | Collecting all security events                 |
       | Enabled         | True                                           |
       | Event           | ALL                                            |
       | ID              | 8085c3e6-0fa2-4954-b5ce-ff6207931b6d           |
@@ -129,43 +140,41 @@ Operator workflow
       | updated_at      | 2017-07-05T02:56:43Z                           |
       +-----------------+------------------------------------------------+
 
-.. note::
+   .. note::
 
-   The ``Enabled`` field is set to ``True`` by default. If enabled,
-   log information is written to the destination if configured in
-   ``local_output_log_base`` or system journal like ``/var/log/syslog``.
+      - The ``Enabled`` field is set to ``True`` by default. If enabled, logged
+        events is written to the destination if ``local_output_log_base`` is
+        configured or ``/var/log/syslog`` in default.
+      - ``Event`` field will be set to ``ALL`` if ``--event`` is not specified
+        from log creation request.
 
+#. Enable/Disable log
 
-Enable/Disable log
-------------------
+   We can ``enable`` or ``disable`` logging objects at runtime. It means that
+   it will apply to all attached VM ports with the logging object immediately.
+   For example:
 
-We can enable or disable logging objects at runtime. It means that it will
-apply to all attached ports with the logging object immediately.
+   .. code-block:: console
 
-For example:
-
-.. code-block:: console
-
-    $ openstack network log set --disable Log_Created
-    $ openstack network log show Log_Created
-     +-----------------+------------------------------------------------+
-     | Field           | Value                                          |
-     +-----------------+------------------------------------------------+
-     | Description     | Collecting all security events in project demo |
-     | Enabled         | False                                          |
-     | Event           | ALL                                            |
-     | ID              | 8085c3e6-0fa2-4954-b5ce-ff6207931b6d           |
-     | Name            | Log_Created                                    |
-     | Project         | 02568bd62b414221956f15dbe9527d16               |
-     | Resource        | None                                           |
-     | Target          | None                                           |
-     | Type            | security_group                                 |
-     | created_at      | 2017-07-05T02:56:43Z                           |
-     | revision_number | 1                                              |
-     | tenant_id       | 02568bd62b414221956f15dbe9527d16               |
-     | updated_at      | 2017-07-05T03:12:01Z                           |
-     +-----------------+------------------------------------------------+
-
+      $ openstack network log set --disable Log_Created
+      $ openstack network log show Log_Created
+       +-----------------+------------------------------------------------+
+       | Field           | Value                                          |
+       +-----------------+------------------------------------------------+
+       | Description     | Collecting all security events                 |
+       | Enabled         | False                                          |
+       | Event           | ALL                                            |
+       | ID              | 8085c3e6-0fa2-4954-b5ce-ff6207931b6d           |
+       | Name            | Log_Created                                    |
+       | Project         | 02568bd62b414221956f15dbe9527d16               |
+       | Resource        | None                                           |
+       | Target          | None                                           |
+       | Type            | security_group                                 |
+       | created_at      | 2017-07-05T02:56:43Z                           |
+       | revision_number | 1                                              |
+       | tenant_id       | 02568bd62b414221956f15dbe9527d16               |
+       | updated_at      | 2017-07-05T03:12:01Z                           |
+       +-----------------+------------------------------------------------+
 
 Events collected description
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
