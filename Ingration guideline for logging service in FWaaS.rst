@@ -17,7 +17,7 @@ Environment
 
     sudo apt-get install libnetfilter-log1 python-zmq
 	
-* Devstack local.conf:  http://paste.openstack.org/show/725188/
+* Devstack local.conf:  http://paste.openstack.org/show/725635/
   
 * Install devstack with ./stack.sh
 
