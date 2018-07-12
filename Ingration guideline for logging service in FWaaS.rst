@@ -116,15 +116,24 @@ Network Configuration
 	openstack router create router0
 	openstack router add subnet router0 subnet0
 	openstack router add subnet router0 subnet1
+	
+	# Create vm0, vm1 and attach to net0, net0
+	openstack server create  vm0 --image cirros-0.3.5-x86_64-disk --flavor m1.tiny --network net0
+	openstack server create  vm1 --image cirros-0.3.5-x86_64-disk --flavor m1.tiny --network net1
 
 	# Create fwg1 with default ingress, egress firewall group policy from admin project
 	project_id=$(openstack project show admin | grep ' id' | awk '{print$4}')
 	i_fwp_id=$(openstack firewall group policy list --long | grep ingress | grep $project_id | awk '{print$2}')
 	e_fwp_id=$(openstack firewall group policy list --long | grep egress | grep $project_id | awk '{print$2}')
 
-	# Attach fwg1 to internal router port
+	# Attach fwg1 to internal router port that attaches to net0
 	net0_port=$(openstack port list | grep 10.10.0.1 | awk '{print$2}')
 	openstack firewall group create --name fwg1 --port $net0_port --ingress-firewall-policy $i_fwp_id --egress-firewall-policy $e_fwp_id
+
+The deployed topology should look like:
+  
+  .. figure:: ./topo.png
+     :alt: Network topology for testing
 
 Workflow testing scenario
 =========================
@@ -146,6 +155,23 @@ Workflow testing scenario
   .. code-block:: console
 
 	openstack network log create --resource-type firewall_group --enable --event ALL Log_all
+
+  **Note:** You can test firewall loging with the following arguments:
+  
+  - **--event <event>** *#[ALL, ACCEPT, DROP]*
+
+  -	**--resource-type firewall_group**
+
+  - **--resource <resource>** *# Firewall Group name or ID*
+
+  - **--target <target>** *# Port Name or ID*
+
+	
+* Using **ping** command as traffic generator to test traffic logging from vm0 to vm1
+
+  - Access the console of vm0
+  
+  - ping from vm0 to vm1
   
 * Check nflog rule creation in **accepted** and **dropped** chain from both **iptables** and **ip6tables**
 
@@ -154,11 +180,11 @@ Workflow testing scenario
 	router_id=$(openstack router list | grep router0 | awk '{print$2}')
 	router_ns='qrouter-'$router_id
 
-	printf "\niptables v4\n"
+	printf "===========\niptables v4\n===========\n"
 	sudo ip netns exec $router_ns iptables -nvL neutron-l3-agent-accepted
 	sudo ip netns exec $router_ns iptables -nvL neutron-l3-agent-dropped
 	
-	printf "\niptables v6\n"
+	printf "===========\niptables v6\n===========\n"
 	sudo ip netns exec $router_ns ip6tables -nvL neutron-l3-agent-accepted
 	sudo ip netns exec $router_ns ip6tables -nvL neutron-l3-agent-dropped
 
@@ -169,34 +195,50 @@ Workflow testing scenario
 	===========
 	Chain neutron-l3-agent-accepted (4 references)
 	 pkts bytes target     prot opt in     out     source               destination
-		0     0 NFLOG      all  --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-out qr-3ca70579-14 --physdev-is-bridged state NEW limit: avg 100/sec burst 25 nflog-prefix  12055195249601041766 nflog-group 2
-		0     0 NFLOG      all  --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-in qr-3ca70579-14 --physdev-is-bridged state NEW limit: avg 100/sec burst 25 nflog-prefix  12055195249601041766 nflog-group 2
-		0     0 NFLOG      all  --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-out qr-ffca1c2c-cd --physdev-is-bridged state NEW limit: avg 100/sec burst 25 nflog-prefix  12043269641118917777 nflog-group 2
-		0     0 NFLOG      all  --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-in qr-ffca1c2c-cd --physdev-is-bridged state NEW limit: avg 100/sec burst 25 nflog-prefix  12043269641118917777 nflog-group 2
-		0     0 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0
+		0     0 NFLOG      all  --  qr-d8998293-03 *       0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
+		1    84 NFLOG      all  --  *      qr-d8998293-03  0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
+		1    84 NFLOG      all  --  qr-e6aa17bd-be *       0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
+		0     0 NFLOG      all  --  *      qr-e6aa17bd-be  0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
+	   70  5880 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0
 	Chain neutron-l3-agent-dropped (3 references)
 	 pkts bytes target     prot opt in     out     source               destination
-		0     0 NFLOG      all  --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-out qr-3ca70579-14 --physdev-is-bridged limit: avg 100/sec burst 25 nflog-prefix  12055195249601041766 nflog-group 2
-		0     0 NFLOG      all  --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-in qr-3ca70579-14 --physdev-is-bridged limit: avg 100/sec burst 25 nflog-prefix  12055195249601041766 nflog-group 2
-		0     0 NFLOG      all  --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-out qr-ffca1c2c-cd --physdev-is-bridged limit: avg 100/sec burst 25 nflog-prefix  12043269641118917777 nflog-group 2
-		0     0 NFLOG      all  --  *      *       0.0.0.0/0            0.0.0.0/0            PHYSDEV match --physdev-in qr-ffca1c2c-cd --physdev-is-bridged limit: avg 100/sec burst 25 nflog-prefix  12043269641118917777 nflog-group 2
+		0     0 NFLOG      all  --  qr-d8998293-03 *       0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
+		0     0 NFLOG      all  --  *      qr-d8998293-03  0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
+		0     0 NFLOG      all  --  qr-e6aa17bd-be *       0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
+		0     0 NFLOG      all  --  *      qr-e6aa17bd-be  0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
 		0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0
 	===========
 	iptables v6
 	===========
 	Chain neutron-l3-agent-accepted (4 references)
 	 pkts bytes target     prot opt in     out     source               destination
-		0     0 NFLOG      all      *      *       ::/0                 ::/0                 PHYSDEV match --physdev-out qr-3ca70579-14 --physdev-is-bridged state NEW limit: avg 100/sec burst 25 nflog-prefix  12055195249601041766 nflog-group 2
-		0     0 NFLOG      all      *      *       ::/0                 ::/0                 PHYSDEV match --physdev-in qr-3ca70579-14 --physdev-is-bridged state NEW limit: avg 100/sec burst 25 nflog-prefix  12055195249601041766 nflog-group 2
-		0     0 NFLOG      all      *      *       ::/0                 ::/0                 PHYSDEV match --physdev-out qr-ffca1c2c-cd --physdev-is-bridged state NEW limit: avg 100/sec burst 25 nflog-prefix  12043269641118917777 nflog-group 2
-		0     0 NFLOG      all      *      *       ::/0                 ::/0                 PHYSDEV match --physdev-in qr-ffca1c2c-cd --physdev-is-bridged state NEW limit: avg 100/sec burst 25 nflog-prefix  12043269641118917777 nflog-group 2
+		0     0 NFLOG      all      qr-d8998293-03 *       ::/0                 ::/0                 state NEW limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
+		0     0 NFLOG      all      *      qr-d8998293-03  ::/0                 ::/0                 state NEW limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
+		0     0 NFLOG      all      qr-e6aa17bd-be *       ::/0                 ::/0                 state NEW limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
+		0     0 NFLOG      all      *      qr-e6aa17bd-be  ::/0                 ::/0                 state NEW limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
 		0     0 ACCEPT     all      *      *       ::/0                 ::/0
 	Chain neutron-l3-agent-dropped (3 references)
 	 pkts bytes target     prot opt in     out     source               destination
-		0     0 NFLOG      all      *      *       ::/0                 ::/0                 PHYSDEV match --physdev-out qr-3ca70579-14 --physdev-is-bridged limit: avg 100/sec burst 25 nflog-prefix  12055195249601041766 nflog-group 2
-		0     0 NFLOG      all      *      *       ::/0                 ::/0                 PHYSDEV match --physdev-in qr-3ca70579-14 --physdev-is-bridged limit: avg 100/sec burst 25 nflog-prefix  12055195249601041766 nflog-group 2
-		0     0 NFLOG      all      *      *       ::/0                 ::/0                 PHYSDEV match --physdev-out qr-ffca1c2c-cd --physdev-is-bridged limit: avg 100/sec burst 25 nflog-prefix  12043269641118917777 nflog-group 2
-		0     0 NFLOG      all      *      *       ::/0                 ::/0                 PHYSDEV match --physdev-in qr-ffca1c2c-cd --physdev-is-bridged limit: avg 100/sec burst 25 nflog-prefix  12043269641118917777 nflog-group 2
+		0     0 NFLOG      all      qr-d8998293-03 *       ::/0                 ::/0                 limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
+		0     0 NFLOG      all      *      qr-d8998293-03  ::/0                 ::/0                 limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
+		0     0 NFLOG      all      qr-e6aa17bd-be *       ::/0                 ::/0                 limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
+		0     0 NFLOG      all      *      qr-e6aa17bd-be  ::/0                 ::/0                 limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
 		0     0 DROP       all      *      *       ::/0                 ::/0
-	
+
+* **Iptables statistic changes:**
+
+  The first packet has passed NFLOG rule in iptables
+
+  .. code-block:: bash
+
+	Chain neutron-l3-agent-accepted (4 references)
+	pkts bytes target     prot opt in     out     source               destination
+	1    84 NFLOG      all  --  *      qr-d8998293-03  0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
+	1    84 NFLOG      all  --  qr-e6aa17bd-be *       0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
+		
 * Log information is written to the destination if configured in system journal like **/var/log/syslog**
+
+  .. code-block:: bash
+
+    tailf /var/log/syslog | grep -e ACCEPT -e DROP
+
