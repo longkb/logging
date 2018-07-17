@@ -24,40 +24,17 @@ Environment
 Code integration
 ================
 
-In **/opt/stack/neutron**:
+In master branch of **/opt/stack/neutron**:
 
 .. code-block:: console
 
-  # [log] Generic RPC stuffs for logging in server side
-  git review -d 534227
-  # Generic validate_request method for logging
-  git review -x 529814
-  # Adding resources callback handler
-  git review -x 580575
+  git review -d 580575
 
-* **Note:** 534227 patch will conflict with 529814 patch in neutron/services/logapi/drivers/openvswitch/driver.py
-
-In **/opt/stack/neutron-fwaas**:
+In master branch of **/opt/stack/neutron-fwaas**:
 
 .. code-block:: console
 
-  # Introduce accepted/dropped/rejected chains for future processing
-  git review -d 574128
-  # WIP: Add python binding for libnetfilter_log
-  git review -x 530694
-  # Add log validator for FWaaS side
-  git review -x 532792
-  # Firewall L3 logging extension
-  git review -x 576338
-  # [log]: Add rpc stuff for logging
-  git review -x 530715
-  # Add notification callback events
-  git review -x 578718
-  # Adding resources callback handler for logging service in FWaaS
-  git review -x 580976
-  # [log] Logging driver based iptables for FWaaS
-  git review -x 553738
-
+  git review -d 553738
   sudo python setup.py install
 
 In **python-neutron client**:
@@ -132,7 +109,7 @@ Network Configuration
 
 The deployed topology should look like:
   
-  .. figure:: ./topo.png
+  .. figure:: figures/topo.png
      :alt: Network topology for testing
 
 Workflow testing scenario
@@ -193,37 +170,30 @@ Workflow testing scenario
 	===========
 	iptables v4
 	===========
-	Chain neutron-l3-agent-accepted (4 references)
+	Chain neutron-l3-agent-accepted (3 references)
 	 pkts bytes target     prot opt in     out     source               destination
-		0     0 NFLOG      all  --  qr-d8998293-03 *       0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
-		1    84 NFLOG      all  --  *      qr-d8998293-03  0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
-		1    84 NFLOG      all  --  qr-e6aa17bd-be *       0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
-		0     0 NFLOG      all  --  *      qr-e6aa17bd-be  0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
-	   70  5880 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0
-	Chain neutron-l3-agent-dropped (3 references)
+		1    84 NFLOG      all  --  qr-6270396a-7b *       0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  9498768002446859636
+		0     0 NFLOG      all  --  *      qr-6270396a-7b  0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  9498768002446859636
+	  364 30576 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0
+	Chain neutron-l3-agent-dropped (4 references)
 	 pkts bytes target     prot opt in     out     source               destination
-		0     0 NFLOG      all  --  qr-d8998293-03 *       0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
-		0     0 NFLOG      all  --  *      qr-d8998293-03  0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
-		0     0 NFLOG      all  --  qr-e6aa17bd-be *       0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
-		0     0 NFLOG      all  --  *      qr-e6aa17bd-be  0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
-		0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0
+		0     0 NFLOG      all  --  qr-6270396a-7b *       0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  9574291587585413340
+		9   756 NFLOG      all  --  *      qr-6270396a-7b  0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  9574291587585413340
+	   76  6384 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0
 	===========
 	iptables v6
 	===========
-	Chain neutron-l3-agent-accepted (4 references)
+	Chain neutron-l3-agent-accepted (3 references)
 	 pkts bytes target     prot opt in     out     source               destination
-		0     0 NFLOG      all      qr-d8998293-03 *       ::/0                 ::/0                 state NEW limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
-		0     0 NFLOG      all      *      qr-d8998293-03  ::/0                 ::/0                 state NEW limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
-		0     0 NFLOG      all      qr-e6aa17bd-be *       ::/0                 ::/0                 state NEW limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
-		0     0 NFLOG      all      *      qr-e6aa17bd-be  ::/0                 ::/0                 state NEW limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
+		0     0 NFLOG      all      qr-6270396a-7b *       ::/0                 ::/0                 state NEW limit: avg 100/sec burst 25 nflog-prefix  9498768002446859636
+		0     0 NFLOG      all      *      qr-6270396a-7b  ::/0                 ::/0                 state NEW limit: avg 100/sec burst 25 nflog-prefix  9498768002446859636
 		0     0 ACCEPT     all      *      *       ::/0                 ::/0
-	Chain neutron-l3-agent-dropped (3 references)
+	Chain neutron-l3-agent-dropped (4 references)
 	 pkts bytes target     prot opt in     out     source               destination
-		0     0 NFLOG      all      qr-d8998293-03 *       ::/0                 ::/0                 limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
-		0     0 NFLOG      all      *      qr-d8998293-03  ::/0                 ::/0                 limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
-		0     0 NFLOG      all      qr-e6aa17bd-be *       ::/0                 ::/0                 limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
-		0     0 NFLOG      all      *      qr-e6aa17bd-be  ::/0                 ::/0                 limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
+		0     0 NFLOG      all      qr-6270396a-7b *       ::/0                 ::/0                 limit: avg 100/sec burst 25 nflog-prefix  9574291587585413340
+		0     0 NFLOG      all      *      qr-6270396a-7b  ::/0                 ::/0                 limit: avg 100/sec burst 25 nflog-prefix  9574291587585413340
 		0     0 DROP       all      *      *       ::/0                 ::/0
+
 
 * **Iptables statistic changes:**
 
@@ -231,14 +201,18 @@ Workflow testing scenario
 
   .. code-block:: bash
 
-	Chain neutron-l3-agent-accepted (4 references)
-	pkts bytes target     prot opt in     out     source               destination
-	1    84 NFLOG      all  --  *      qr-d8998293-03  0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  11014746673576200064 nflog-group 2
-	1    84 NFLOG      all  --  qr-e6aa17bd-be *       0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  9822442003606001975 nflog-group 2
-		
+	 pkts bytes target     prot opt in     out     source               destination
+	    1    84 NFLOG      all  --  qr-6270396a-7b *       0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  9498768002446859636
+	    0     0 NFLOG      all  --  *      qr-6270396a-7b  0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  9498768002446859636
+	  364 30576 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0
+
 * Log information is written to the destination if configured in system journal like **/var/log/syslog**
 
   .. code-block:: bash
 
-    tailf /var/log/syslog | grep -e ACCEPT -e DROP
+    $ tailf /var/log/syslog | grep -e ACCEPT -e DROP
+
+      Jul 20 13:53:52 longkb pydevd.py: event=ACCEPT, log_ids=[u'cf6260c0-43a0-4d37-abf8-9823e58c7ce8'], port=6270396a-7bbb-4a75-a94f-7c978e7ea14b pkt=ethernet(dst='fa:16:3e:31:6a:81',ethertype=2048,src='fa:16:3e:7c:a6:d6')ipv4(csum=65109,dst='10.10.1.8',flags=2,header_length=5,identification=10286,offset=0,option=None,proto=1,src='10.10.0.10',tos=0,total_length=84,ttl=63,version=4)icmp(code=0,csum=29665,data=echo(data='\xc1\x91M\x8b\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00',id=29953,seq=0),type=8)
+      Jul 20 13:53:59 longkb pydevd.py: event=DROP, log_ids=[u'cf6260c0-43a0-4d37-abf8-9823e58c7ce8'], port=6270396a-7bbb-4a75-a94f-7c978e7ea14b pkt=ethernet(dst='fa:16:3e:f1:49:e0',ethertype=2048,src='fa:16:3e:74:01:fc')ipv4(csum=29056,dst='10.10.0.10',flags=2,header_length=5,identification=46339,offset=0,option=None,proto=1,src='10.10.1.8',tos=0,total_length=84,ttl=63,version=4)icmp(code=0,csum=12058,data=echo(data='\xe3ZV\x89\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00',id=36609,seq=0),type=8)
+      Jul 20 13:54:00 longkb pydevd.py: event=DROP, log_ids=[u'cf6260c0-43a0-4d37-abf8-9823e58c7ce8'], port=6270396a-7bbb-4a75-a94f-7c978e7ea14b pkt=ethernet(dst='fa:16:3e:f1:49:e0',ethertype=2048,src='fa:16:3e:74:01:fc')ipv4(csum=29009,dst='10.10.0.10',flags=2,header_length=5,identification=46386,offset=0,option=None,proto=1,src='10.10.1.8',tos=0,total_length=84,ttl=63,version=4)icmp(code=0,csum=47571,data=echo(data='I\xa0e\x89\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00',id=36609,seq=1),type=8)
 
