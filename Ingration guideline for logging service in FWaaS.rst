@@ -68,6 +68,15 @@ To enable the service, follow the steps below.
     [AGENT]
     extensions = fwaas_v2,fwaas_v2_log
 
+  - Besides, FWaaS v2 logging also enable some optional configuraion. In **/etc/neutron/l3_agent.ini**, config logging service as bellow:
+
+  .. code-block:: block
+
+     [network_log]
+     rate_limit = 100
+     burst_limit = 25
+     local_output_log_base = /home/stack/fw_log
+
 * Restart neutron services:
 
   .. code-block:: console
@@ -94,7 +103,7 @@ Network Configuration
 	openstack router add subnet router0 subnet0
 	openstack router add subnet router0 subnet1
 	
-	# Create vm0, vm1 and attach to net0, net0
+	# Create vm0, vm1 and attach to net0, net1
 	openstack server create  vm0 --image cirros-0.3.5-x86_64-disk --flavor m1.tiny --network net0
 	openstack server create  vm1 --image cirros-0.3.5-x86_64-disk --flavor m1.tiny --network net1
 
@@ -103,9 +112,12 @@ Network Configuration
 	i_fwp_id=$(openstack firewall group policy list --long | grep ingress | grep $project_id | awk '{print$2}')
 	e_fwp_id=$(openstack firewall group policy list --long | grep egress | grep $project_id | awk '{print$2}')
 
-	# Attach fwg1 to internal router port that attaches to net0
-	net0_port=$(openstack port list | grep 10.10.0.1 | awk '{print$2}')
+	# Create and attach fwg1 to internal router port that attaches to net0
+	net0_port=$(openstack port list | grep -e "'10.10.0.1'" | awk '{print$2}')
 	openstack firewall group create --name fwg1 --port $net0_port --ingress-firewall-policy $i_fwp_id --egress-firewall-policy $e_fwp_id
+	
+	# Create fwg2
+	openstack firewall group create --name fwg2 --ingress-firewall-policy $i_fwp_id --egress-firewall-policy $e_fwp_id
 
 The deployed topology should look like:
   
