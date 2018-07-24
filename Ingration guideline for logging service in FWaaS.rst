@@ -104,7 +104,7 @@ Network Configuration
 	e_fwp_id=$(openstack firewall group policy list --long | grep egress | grep $project_id | awk '{print$2}')
 
 	# Attach fwg1 to internal router port that attaches to net0
-	net0_port=$(openstack port list | grep 10.10.0.1 | awk '{print$2}')
+	net0_port=$(openstack port list | grep -e "'10.10.0.1'" | awk '{print$2}')
 	openstack firewall group create --name fwg1 --port $net0_port --ingress-firewall-policy $i_fwp_id --egress-firewall-policy $e_fwp_id
 
 The deployed topology should look like:
