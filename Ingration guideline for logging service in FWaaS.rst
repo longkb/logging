@@ -90,6 +90,13 @@ Network Configuration
 
   .. code-block:: console
 	
+	# Remove existing network resources
+	source ~/devstack/openrc admin admin
+	openstack router remove subnet router1 private-subnet
+	openstack router remove subnet router1 ipv6-private-subnet
+	openstack router delete router1
+	openstack network delete private public
+
 	# Create net0 with subnet subnet0
 	openstack network create --share net0
 	openstack subnet create subnet0 --ip-version 4 --gateway 10.10.0.1 --network net0 --subnet-range 10.10.0.0/24
