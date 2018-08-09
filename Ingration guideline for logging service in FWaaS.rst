@@ -19,31 +19,30 @@ Environment
 	
 * Devstack local.conf:  http://paste.openstack.org/show/725635/
   
+  .. code-block:: block
+  
+    [[local|localrc]]
+    ADMIN_PASSWORD=stack
+    DATABASE_PASSWORD=stack
+    RABBIT_PASSWORD=stack
+    SERVICE_PASSWORD=$ADMIN_PASSWORD
+    LOGFILE=$DEST/logs/stack.sh.log
+    LOGDAYS=2
+    RECLONE=Yes
+    disable_service n-net
+    disable_service tempest
+    disable_service c-api
+    disable_service c-vol
+    disable_service c-sch
+    enable_service neutron
+    enable_plugin neutron-fwaas https://github.com/openstack/neutron-fwaas.git refs/changes/91/589991/4
+    enable_service q-fwaas-v2
+    FW_L2_DRIVER=ovs
+
 * Install devstack with ./stack.sh
 
 Code integration
 ================
-
-In master branch of **/opt/stack/neutron**:
-
-.. code-block:: console
-
-  git review -d 580575
-
-In master branch of **/opt/stack/neutron-fwaas**:
-
-.. code-block:: console
-
-  git review -d 553738
-  sudo python setup.py install
-
-In **python-neutron client**:
-
-.. code-block:: console
-
-  git clone https://github.com/openstack/python-neutronclient.git && cd python-neutronclient
-  git review -d 579466
-  sudo python setup.py install
 
 Devstack configuration
 ======================
