@@ -39,6 +39,7 @@ Environment
     enable_plugin neutron-fwaas https://github.com/openstack/neutron-fwaas.git refs/changes/91/589991/4
     enable_service q-fwaas-v2
     FW_L2_DRIVER=ovs
+    
     [[post-config|/etc/neutron/l3_agent.ini]]
     [AGENT]
     extensions = fwaas_v2,fwaas_v2_log 
