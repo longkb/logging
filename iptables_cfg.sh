@@ -4,7 +4,10 @@ router_ns='qrouter-'$router_id
 printf "===========\niptables v4\n===========\n"
 sudo ip netns exec $router_ns iptables -nvL neutron-l3-agent-accepted
 sudo ip netns exec $router_ns iptables -nvL neutron-l3-agent-dropped
+sudo ip netns exec $router_ns iptables -nvL neutron-l3-agent-rejected
 	
 printf "===========\niptables v6\n===========\n"
 sudo ip netns exec $router_ns ip6tables -nvL neutron-l3-agent-accepted
 sudo ip netns exec $router_ns ip6tables -nvL neutron-l3-agent-dropped
+sudo ip netns exec $router_ns iptables -nvL neutron-l3-agent-rejected
+

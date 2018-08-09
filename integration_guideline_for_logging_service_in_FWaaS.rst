@@ -1,4 +1,4 @@
-
+﻿
 Integration guideline for logging service in FWaaS
 ==================================================
 
@@ -156,7 +156,7 @@ Workflow testing scenario
 
 	openstack network log create --resource-type firewall_group --enable --event ALL Log_all
 
-  **Note:** You can test firewall loging with the following arguments:
+  **Note:** You can test firewall logging with the following arguments:
   
   - **--event <event>** *#[ALL, ACCEPT, DROP]*
 
@@ -183,39 +183,51 @@ Workflow testing scenario
 	printf "===========\niptables v4\n===========\n"
 	sudo ip netns exec $router_ns iptables -nvL neutron-l3-agent-accepted
 	sudo ip netns exec $router_ns iptables -nvL neutron-l3-agent-dropped
+	sudo ip netns exec $router_ns iptables -nvL neutron-l3-agent-rejected
 	
 	printf "===========\niptables v6\n===========\n"
 	sudo ip netns exec $router_ns ip6tables -nvL neutron-l3-agent-accepted
 	sudo ip netns exec $router_ns ip6tables -nvL neutron-l3-agent-dropped
+	sudo ip netns exec $router_ns iptables -nvL neutron-l3-agent-rejected
 
 * The iptables configuration results when logging is enabled would look like::
 
 	===========
 	iptables v4
 	===========
-	Chain neutron-l3-agent-accepted (3 references)
+	Chain neutron-l3-agent-accepted (2 references)
 	 pkts bytes target     prot opt in     out     source               destination
-		1    84 NFLOG      all  --  qr-6270396a-7b *       0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  9498768002446859636
-		0     0 NFLOG      all  --  *      qr-6270396a-7b  0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  9498768002446859636
-	  364 30576 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0
-	Chain neutron-l3-agent-dropped (4 references)
+	   10   840 NFLOG      all  --  qr-0a3238aa-fd *       0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  13056991142078571324
+		0     0 NFLOG      all  --  *      qr-0a3238aa-fd  0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  13056991142078571324
+	   10   840 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0
+	Chain neutron-l3-agent-dropped (7 references)
 	 pkts bytes target     prot opt in     out     source               destination
-		0     0 NFLOG      all  --  qr-6270396a-7b *       0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  9574291587585413340
-		9   756 NFLOG      all  --  *      qr-6270396a-7b  0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  9574291587585413340
-	   76  6384 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0
+		0     0 NFLOG      all  --  qr-0a3238aa-fd *       0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  9844330454595421866
+		0     0 NFLOG      all  --  *      qr-0a3238aa-fd  0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  9844330454595421866
+		0     0 DROP       all  --  *      *       0.0.0.0/0            0.0.0.0/0
+	Chain neutron-l3-agent-rejected (0 references)
+	 pkts bytes target     prot opt in     out     source               destination
+		0     0 NFLOG      all  --  qr-0a3238aa-fd *       0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  9844330454595421866
+		0     0 NFLOG      all  --  *      qr-0a3238aa-fd  0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  9844330454595421866
+		0     0 REJECT     all  --  *      *       0.0.0.0/0            0.0.0.0/0            reject-with icmp-port-unreachable
 	===========
 	iptables v6
 	===========
-	Chain neutron-l3-agent-accepted (3 references)
+	Chain neutron-l3-agent-accepted (2 references)
 	 pkts bytes target     prot opt in     out     source               destination
-		0     0 NFLOG      all      qr-6270396a-7b *       ::/0                 ::/0                 state NEW limit: avg 100/sec burst 25 nflog-prefix  9498768002446859636
-		0     0 NFLOG      all      *      qr-6270396a-7b  ::/0                 ::/0                 state NEW limit: avg 100/sec burst 25 nflog-prefix  9498768002446859636
+		0     0 NFLOG      all      qr-0a3238aa-fd *       ::/0                 ::/0                 limit: avg 100/sec burst 25 nflog-prefix  13056991142078571324
+		0     0 NFLOG      all      *      qr-0a3238aa-fd  ::/0                 ::/0                 limit: avg 100/sec burst 25 nflog-prefix  13056991142078571324
 		0     0 ACCEPT     all      *      *       ::/0                 ::/0
-	Chain neutron-l3-agent-dropped (4 references)
+	Chain neutron-l3-agent-dropped (7 references)
 	 pkts bytes target     prot opt in     out     source               destination
-		0     0 NFLOG      all      qr-6270396a-7b *       ::/0                 ::/0                 limit: avg 100/sec burst 25 nflog-prefix  9574291587585413340
-		0     0 NFLOG      all      *      qr-6270396a-7b  ::/0                 ::/0                 limit: avg 100/sec burst 25 nflog-prefix  9574291587585413340
+		0     0 NFLOG      all      qr-0a3238aa-fd *       ::/0                 ::/0                 limit: avg 100/sec burst 25 nflog-prefix  9844330454595421866
+		0     0 NFLOG      all      *      qr-0a3238aa-fd  ::/0                 ::/0                 limit: avg 100/sec burst 25 nflog-prefix  9844330454595421866
 		0     0 DROP       all      *      *       ::/0                 ::/0
+	Chain neutron-l3-agent-rejected (0 references)
+	 pkts bytes target     prot opt in     out     source               destination
+		0     0 NFLOG      all  --  qr-0a3238aa-fd *       0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  9844330454595421866
+		0     0 NFLOG      all  --  *      qr-0a3238aa-fd  0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  9844330454595421866
+
 
 
 * **Iptables statistic changes:**
@@ -224,18 +236,17 @@ Workflow testing scenario
 
   .. code-block:: bash
 
+	Chain neutron-l3-agent-accepted (2 references)
 	 pkts bytes target     prot opt in     out     source               destination
-	    1    84 NFLOG      all  --  qr-6270396a-7b *       0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  9498768002446859636
-	    0     0 NFLOG      all  --  *      qr-6270396a-7b  0.0.0.0/0            0.0.0.0/0            state NEW limit: avg 100/sec burst 25 nflog-prefix  9498768002446859636
-	  364 30576 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0
+	   10   840 NFLOG      all  --  qr-0a3238aa-fd *       0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  13056991142078571324
+	    0     0 NFLOG      all  --  *      qr-0a3238aa-fd  0.0.0.0/0            0.0.0.0/0            limit: avg 100/sec burst 25 nflog-prefix  13056991142078571324
+	   10   840 ACCEPT     all  --  *      *       0.0.0.0/0            0.0.0.0/0
 
-* Log information is written to the destination if configured in system journal like **/var/log/syslog**
+* Log information is written to the destination if configured **/etc/neutron/l3_agent.ini** or **/var/log/syslog** by default
 
   .. code-block:: bash
 
-    $ tailf /var/log/syslog | grep -e ACCEPT -e DROP
+    $ tailf /home/stack/fw_log | grep -e ACCEPT -e DROP
 
-      Jul 20 13:53:52 longkb pydevd.py: event=ACCEPT, log_ids=[u'cf6260c0-43a0-4d37-abf8-9823e58c7ce8'], port=6270396a-7bbb-4a75-a94f-7c978e7ea14b pkt=ethernet(dst='fa:16:3e:31:6a:81',ethertype=2048,src='fa:16:3e:7c:a6:d6')ipv4(csum=65109,dst='10.10.1.8',flags=2,header_length=5,identification=10286,offset=0,option=None,proto=1,src='10.10.0.10',tos=0,total_length=84,ttl=63,version=4)icmp(code=0,csum=29665,data=echo(data='\xc1\x91M\x8b\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00',id=29953,seq=0),type=8)
-      Jul 20 13:53:59 longkb pydevd.py: event=DROP, log_ids=[u'cf6260c0-43a0-4d37-abf8-9823e58c7ce8'], port=6270396a-7bbb-4a75-a94f-7c978e7ea14b pkt=ethernet(dst='fa:16:3e:f1:49:e0',ethertype=2048,src='fa:16:3e:74:01:fc')ipv4(csum=29056,dst='10.10.0.10',flags=2,header_length=5,identification=46339,offset=0,option=None,proto=1,src='10.10.1.8',tos=0,total_length=84,ttl=63,version=4)icmp(code=0,csum=12058,data=echo(data='\xe3ZV\x89\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00',id=36609,seq=0),type=8)
-      Jul 20 13:54:00 longkb pydevd.py: event=DROP, log_ids=[u'cf6260c0-43a0-4d37-abf8-9823e58c7ce8'], port=6270396a-7bbb-4a75-a94f-7c978e7ea14b pkt=ethernet(dst='fa:16:3e:f1:49:e0',ethertype=2048,src='fa:16:3e:74:01:fc')ipv4(csum=29009,dst='10.10.0.10',flags=2,header_length=5,identification=46386,offset=0,option=None,proto=1,src='10.10.1.8',tos=0,total_length=84,ttl=63,version=4)icmp(code=0,csum=47571,data=echo(data='I\xa0e\x89\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00',id=36609,seq=1),type=8)
-
+      2018-08-09 14:18:58 action=ACCEPT, project_id=150b504a5d474561872ee1e6c0dfb191, log_resource_ids=['36003ab5-7a87-4ef6-976c-01ebf4f3a19c'], port=0a3238aa-fd65-4fde-b86c-ad4b6f8dc6d7, pkt=ethernet(dst='fa:16:3e:3d:da:48',ethertype=2048,src='fa:16:3e:77:de:99')ipv4(csum=34424,dst='10.10.1.12',flags=2,header_length=5,identification=40951,offset=0,option=None,proto=1,src='10.10.0.26',tos=0,total_length=84,ttl=63,version=4)icmp(code=0,csum=56449,data=echo(data='\x1fId3\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00',id=38913,seq=0),type=8)
+      2018-08-09 14:21:49 action=DROP, project_id=150b504a5d474561872ee1e6c0dfb191, log_resource_ids=['36003ab5-7a87-4ef6-976c-01ebf4f3a19c'], port=a3b81de4-885d-4787-8337-8e519df95003, pkt=ipv4(csum=22235,dst='10.10.0.26',flags=2,header_length=5,identification=53140,offset=0,option=None,proto=1,src='10.10.1.12',tos=0,total_length=84,ttl=63,version=4)icmp(code=0,csum=64811,data=echo(data='0\x93I=\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00',id=33025,seq=2),type=8)
