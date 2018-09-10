@@ -11,6 +11,12 @@ openstack router create router0
 openstack router add subnet router0 subnet0
 openstack router add subnet router0 subnet1
 
+# Update port name
+port0=$(openstack port list | grep 10.10.0.1 | awk '{print$2}')
+openstack port set --name port0 $port0
+port1=$(openstack port list | grep 10.10.1.1 | awk '{print$2}')
+openstack port set --name port1 $port1
+
 # Create vm0, vm1 and attach to net0, net1
 openstack server create  vm0 --image cirros-0.3.5-x86_64-disk --flavor m1.tiny --network net0
 openstack server create  vm1 --image cirros-0.3.5-x86_64-disk --flavor m1.tiny --network net1
